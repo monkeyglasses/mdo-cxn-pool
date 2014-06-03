@@ -1,0 +1,11 @@
+.git*            export-ignore
+
+*                text=auto
+
+*.dll            binary    -whitespace
+*.pdb            binary    -whitespace
+
+*.xml            text      -whitespace
+
+LICENSE          text
+README           text

@@ -1,0 +1,5 @@
+mdo/resources/lib
+
+This tree contains third-party dependencies of the MDO (Medical Domain Objects)
+project.  It is intended for use only as a subdirectory of that project and not
+for independent distribution.
