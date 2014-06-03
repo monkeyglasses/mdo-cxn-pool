@@ -1,21 +1,3 @@
-#region CopyrightHeader
-//
-//  Copyright by Contributors
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//         http://www.apache.org/licenses/LICENSE-2.0.txt
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-//
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Collections;
@@ -53,8 +35,43 @@ namespace gov.va.medora.mdo
         string status;
         string phone;
         string appointmentTimestamp;
+        bool _askForCheckIn; // file 44 field 24
+        string _appointmentLength; // file 44 field 1912
+        string _clinicDisplayStartTime; // file 44, field 1914
+        string _displayIncrements; // file 44, field 1917
+        IList<TimeSlot> _availability;
 
         const string DAO_NAME = "ILocationDao";
+
+        public IList<TimeSlot> Availability
+        {
+            get { return _availability; }
+            set { _availability = value; }
+        }
+
+        public string ClinicDisplayStartTime
+        {
+            get { return _clinicDisplayStartTime; }
+            set { _clinicDisplayStartTime = value; }
+        }
+
+        public string DisplayIncrements
+        {
+            get { return _displayIncrements; }
+            set { _displayIncrements = value; }
+        }
+
+        public string AppointmentLength
+        {
+            get { return _appointmentLength; }
+            set { _appointmentLength = value; }
+        }
+
+        public bool AskForCheckIn
+        {
+            get { return _askForCheckIn; }
+            set { _askForCheckIn = value; }
+        }
 
         public HospitalLocation(string id, string name) 
         {
@@ -233,5 +250,11 @@ namespace gov.va.medora.mdo
         {
             return getDao(cxn).getClinicsByName(name);
         }
+
+        public static List<Site> getAllInstitutions(AbstractConnection cxn)
+        {
+            return getDao(cxn).getAllInstitutions();
+        }
+	
     }
 }

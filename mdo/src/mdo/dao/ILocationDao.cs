@@ -27,5 +27,6 @@ namespace gov.va.medora.mdo.dao
     {
         List<SiteId> getSitesForStation();
         OrderedDictionary getClinicsByName(string name);
+        List<Site> getAllInstitutions();
     }
 }

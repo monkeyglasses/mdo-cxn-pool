@@ -105,5 +105,11 @@ namespace gov.va.medora.mdo.dao.vista
             }
             return result;
         }
+
+
+        public List<Site> getAllInstitutions()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

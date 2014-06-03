@@ -1,21 +1,3 @@
-#region CopyrightHeader
-//
-//  Copyright by Contributors
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//         http://www.apache.org/licenses/LICENSE-2.0.txt
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-//
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -31,9 +13,12 @@ namespace gov.va.medora.mdo.dao.vista
     {
         string file = "";
         string iens = "";
-        string[] requestedFields;       // Holds user's requested order
-        Hashtable requestedFieldsTbl;   // Needed to fetch by FileMan field #, and to hold if External or not
-        ArrayList ienLst;               // Needed to hold record IENs across methods.
+        string _requestedFieldString;
+        string[] _requestedFields;       // Holds user's requested order
+        //Hashtable requestedFieldsTbl;   // Needed to fetch by FileMan field #, and to hold if External or not
+        Dictionary<String, String> _requestedFieldsTbl;
+        //ArrayList ienLst;               // Needed to hold record IENs across methods.
+        IList<String> _ienLst;
         string flags = "";
         string max = "";
         string from = "";
@@ -62,7 +47,7 @@ namespace gov.va.medora.mdo.dao.vista
             {
                 paramLst.Add("\"IENS\"", Iens);
             }
-            if (requestedFields.Length > 0)
+            if (_requestedFields.Length > 0)
             {
                 paramLst.Add("\"FIELDS\"", getFieldsArg());
             }
@@ -114,21 +99,31 @@ namespace gov.va.medora.mdo.dao.vista
         {
             MdoQuery request = buildRequest();
             string response = this.execute(request);
-            return buildResult(response.Replace('|','^'));
+            return buildResult(response.Replace('|', '^'));
         }
+
+        //public VistaRpcQuery executePlus()
+        //{
+        //    MdoQuery request = buildRequest();
+        //    VistaRpcQuery result = this.executePlus(request);
+        //    result.ParsedResult = buildResult(result.ResponseString.Replace('|', '^'));
+        //    return result;
+        //}
 
         private String getFieldsArg()
         {
-            String result = "@";
-            for (int i = 0; i < requestedFields.Length; i++)
+            StringBuilder result = new StringBuilder();
+            result.Append("@");
+            for (int i = 0; i < _requestedFields.Length; i++)
             {
-                if (requestedFields[i] == "@")
+                if (String.Equals(_requestedFields[i], "@"))
                 {
                     continue;
                 }
-                result += ';' + requestedFields[i];
+                result.Append(';');
+                result.Append(_requestedFields[i]);
             }
-            return result;
+            return result.ToString();
         }
 
         private void setMoreParams(string line)
@@ -145,6 +140,16 @@ namespace gov.va.medora.mdo.dao.vista
 
         public string[] buildResult(string rtn)
         {
+            if (String.IsNullOrEmpty(rtn))
+            {
+                return null;
+            }
+
+            if (this.flags.IndexOf("P") < 0) // DdrListerUtils now takes care of unpacked results so let's check if query had P flag before we split the lines unnecessarily
+            {
+                return DdrListerUtils.parseUnpackedResult(rtn, this.Fields, this.Id);
+            }
+
             String[] lines = StringUtils.split(rtn, StringUtils.CRLF);
             lines = StringUtils.trimArray(lines);
             int i = 0;
@@ -158,14 +163,17 @@ namespace gov.va.medora.mdo.dao.vista
                 setMoreParams(lines[i]);
             }
 
-            if (this.flags.IndexOf("P") != -1)
-            {
-                return parsePackedResult(lines);
-            }
-            else
-            {
-                return packResult(lines);
-            }
+            return parsePackedResult(lines);
+
+            //if (this.flags.IndexOf("P") != -1)
+            //{
+            //    return parsePackedResult(lines);
+            //}
+            //else
+            //{
+            //    return DdrListerUtils.parseUnpackedResult(rtn, this.Fields, this.Id);
+            //    //return packResult(lines);
+            //}
         }
 
         private string[] parsePackedResult(string[] lines)
@@ -173,7 +181,7 @@ namespace gov.va.medora.mdo.dao.vista
             int idx = StringUtils.getIdx(lines, VistaConstants.BEGIN_ERRS, 0);
             if (idx != -1)
             {
-                throw new ConnectionException(getErrMsg(lines,idx));
+                throw new ConnectionException(getErrMsg(lines, idx));
             }
 
             idx = StringUtils.getIdx(lines, VistaConstants.BEGIN_DATA, 0);
@@ -191,7 +199,7 @@ namespace gov.va.medora.mdo.dao.vista
             return (string[])lst.ToArray(typeof(string));
         }
 
-        private string[] packResult(string[] lines)
+        internal string[] packResult(string[] lines)
         {
             int idx = 0;
 
@@ -200,16 +208,17 @@ namespace gov.va.medora.mdo.dao.vista
                 return new string[] { };
             }
 
-            Hashtable rs = new Hashtable();
+            Dictionary<String, Dictionary<String, DdrField>> rs = new Dictionary<string, Dictionary<string, DdrField>>();
+            Dictionary<String, String> identifierVals = new Dictionary<String, String>();
 
             if ((idx = StringUtils.getIdx(lines, VistaConstants.BEGIN_ERRS, 0)) != -1)
             {
-                throw new ConnectionException(getErrMsg(lines,idx));
+                throw new ConnectionException(getErrMsg(lines, idx));
             }
 
             if ((idx = StringUtils.getIdx(lines, VistaConstants.BEGIN_DATA, 0)) != -1)
             {
-                ienLst = new ArrayList();
+                _ienLst = new List<String>(); // new ArrayList();
                 if (lines[++idx] != VistaConstants.BEGIN_IENS)
                 {
                     throw new UnexpectedDataException("Incorrectly formatted return data");
@@ -217,7 +226,7 @@ namespace gov.va.medora.mdo.dao.vista
                 idx++;
                 while (lines[idx] != VistaConstants.END_IENS)
                 {
-                    ienLst.Add(lines[idx++]);
+                    _ienLst.Add(lines[idx++]);
                 }
 
                 idx++;
@@ -225,19 +234,29 @@ namespace gov.va.medora.mdo.dao.vista
                 {
                     throw new UnexpectedDataException("Incorrectly formatted return data");
                 }
-                String[] flds = StringUtils.split(lines[++idx], StringUtils.SEMICOLON);
+                //String[] flds = StringUtils.split(lines[++idx], StringUtils.SEMICOLON); -- this line was wrong! see check for [MAP] index above to obtain field names
+
+                IList<String> adjustedFields = new List<String>();
+                foreach (String s in _requestedFields)
+                {
+                    if (!String.Equals("WID", s))
+                    {
+                        adjustedFields.Add(s);
+                    }
+                }
 
                 int recIdx = 0;
                 idx++;
                 while (lines[idx] != VistaConstants.END_IDVALS)
                 {
-                    // the last field in flds is the field count, not a field
-                    Hashtable rec = new Hashtable();
-                    for (int fldIdx = 0; fldIdx < flds.Length-1; fldIdx++)
+                    // the last field in flds is the field count, not a field <--- I don't think this is a valid comment...
+                    Dictionary<String, DdrField> rec = new Dictionary<string, DdrField>();
+                    //Hashtable rec = new Hashtable();
+                    for (int fldIdx = 0; fldIdx < adjustedFields.Count; fldIdx++) // <--- changing this due to thinking the comment above is invalid
                     {
                         DdrField f = new DdrField();
-                        f.FmNumber = flds[fldIdx];
-                        String requestedOptions = (String)requestedFieldsTbl[f.FmNumber];
+                        f.FmNumber = _requestedFields[fldIdx];
+                        String requestedOptions = (String)_requestedFieldsTbl[f.FmNumber];
                         f.HasExternal = requestedOptions.IndexOf('E') != -1;
                         if (f.HasExternal)
                         {
@@ -249,12 +268,31 @@ namespace gov.va.medora.mdo.dao.vista
                         }
                         rec.Add(f.FmNumber, f);
                     }
-                    rs.Add((String)ienLst[recIdx++], rec);
+                    rs.Add((String)_ienLst[recIdx++], rec);
+                }
+
+
+                // any identifier params? if so, turn them in to a Dictionary<String, String> where key is IEN and all lines are separated by tilde just like packed results
+                if (lines.Length > (idx + 1) && String.Equals(lines[++idx], VistaConstants.BEGIN_WIDVALS))
+                {
+                    idx++;
+                    while (!String.Equals(lines[idx], VistaConstants.END_WIDVALS))
+                    {
+                        String[] pieces = StringUtils.split(lines[idx], StringUtils.CARET);
+                        StringBuilder sb = new StringBuilder();
+                        while (!lines[++idx].StartsWith("WID") && !String.Equals(lines[idx], VistaConstants.END_WIDVALS))
+                        {
+                            sb.Append(lines[idx]);
+                            sb.Append(StringUtils.TILDE);
+                        }
+                        sb.Remove(sb.Length - 1, 1);
+                        identifierVals.Add(pieces[1], sb.ToString());
+                    }
                 }
                 // at this point line should be VistaConstants.END_DATA
                 // unless more functionality is added.
             }
-            return toStringArray(rs);
+            return toStringArray(rs, identifierVals);
         }
 
         private string getErrMsg(string[] lines, int idx)
@@ -272,35 +310,53 @@ namespace gov.va.medora.mdo.dao.vista
             return msg;
         }
 
-        private String[] toStringArray(Hashtable hashedRex)
+        internal String[] toStringArray(Dictionary<String, Dictionary<String, DdrField>> records, Dictionary<String, String> identifierVals)
         {
-            ArrayList lst = new ArrayList();
-            for (int recnum = 0; recnum < ienLst.Count; recnum++)
+            //ArrayList lst = new ArrayList();
+            IList<String> results = new List<String>();
+            for (int recnum = 0; recnum < _ienLst.Count; recnum++)
             {
-                String s = (String)ienLst[recnum];
-                Hashtable hashedFlds = (Hashtable)hashedRex[ienLst[recnum]];
-                for (int fldnum = 0; fldnum < requestedFields.Length; fldnum++)
+                StringBuilder sb = new StringBuilder();
+                sb.Append(_ienLst[recnum]);
+                Dictionary<String, DdrField> flds = records[_ienLst[recnum]];
+                //Hashtable hashedFlds = (Hashtable)records[_ienLst[recnum]];
+                for (int fldnum = 0; fldnum < _requestedFields.Length; fldnum++)
                 {
-                    String fmNum = requestedFields[fldnum];
+                    if (String.Equals(_requestedFields[fldnum], "WID"))
+                    {
+                        continue;
+                    }
+                    String fmNum = _requestedFields[fldnum];
                     bool external = false;
                     if (fmNum.IndexOf('E') != -1)
                     {
                         fmNum = fmNum.Substring(0, fmNum.Length - 1);
                         external = true;
                     }
-                    DdrField fld = (DdrField)hashedFlds[fmNum];
+                    DdrField fld = (DdrField)flds[fmNum];
                     if (external)
                     {
-                        s += '^' + fld.ExternalValue;
+                        sb.Append('^');
+                        sb.Append(fld.ExternalValue);
                     }
                     else
                     {
-                        s += '^' + fld.Value;
+                        sb.Append('^');
+                        sb.Append(fld.Value);
                     }
                 }
-                lst.Add(s);
+                if (identifierVals != null && identifierVals.Count > 0 && identifierVals.ContainsKey(_ienLst[recnum]))
+                {
+                    sb.Append("&#94;"); // packed results have this string before start of ID values
+                    sb.Append(identifierVals[_ienLst[recnum]]);
+                }
+
+                results.Add(sb.ToString());
             }
-            return (String[])lst.ToArray(typeof(String));
+
+            String[] final = new String[results.Count];
+            results.CopyTo(final, 0);
+            return final;
         }
 
         public String File
@@ -317,31 +373,33 @@ namespace gov.va.medora.mdo.dao.vista
 
         public String Fields
         {
+            get { return _requestedFieldString; }
             set
             {
+                _requestedFieldString = value;
                 String s = value;
-                requestedFields = StringUtils.split(s, StringUtils.SEMICOLON);
-                requestedFieldsTbl = new Hashtable(requestedFields.Length);
-                for (int i = 0; i < requestedFields.Length; i++)
+                _requestedFields = StringUtils.split(s, StringUtils.SEMICOLON);
+                _requestedFieldsTbl = new Dictionary<string, string>(); // new Hashtable(_requestedFields.Length);
+                for (int i = 0; i < _requestedFields.Length; i++)
                 {
-                    if (requestedFields[i] == "")
+                    if (String.IsNullOrEmpty(_requestedFields[i]))
                     {
                         continue;
                     }
-                    String fldnum = requestedFields[i];
+                    String fldnum = _requestedFields[i];
                     String option = "I";
                     if (fldnum.IndexOf('E') != -1)
                     {
                         fldnum = fldnum.Substring(0, fldnum.Length - 1);
                         option = "E";
                     }
-                    if (!requestedFieldsTbl.ContainsKey(fldnum))
+                    if (!_requestedFieldsTbl.ContainsKey(fldnum))
                     {
-                        requestedFieldsTbl.Add(fldnum, option);
+                        _requestedFieldsTbl.Add(fldnum, option);
                     }
                     else
                     {
-                        requestedFieldsTbl[fldnum] += option;
+                        _requestedFieldsTbl[fldnum] += option;
                     }
                 }
             }

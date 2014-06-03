@@ -57,6 +57,8 @@ namespace gov.va.medora.mdo.dao.vista
         public const string END_IENS = "END_IENs";
         public const string BEGIN_IDVALS = "BEGIN_IDVALUES";
         public const string END_IDVALS = "END_IDVALUES";
+        public const string BEGIN_WIDVALS = "BEGIN_WIDVALUES";
+        public const string END_WIDVALS = "END_WIDVALUES";
         public const string UNPACKED_NO_RESULTS = "0^*^0^";
 
 	    // Order actions
@@ -139,5 +141,7 @@ namespace gov.va.medora.mdo.dao.vista
         public const string GET_VARIABLE_VALUE = "XWB GET VARIABLE VALUE";
 
         public static string VISTA_FILEDEFS_PATH = utils.ResourceUtils.ResourcesPath + "xml/VistaFiles.xml";
+
+        public static string SCHEDULING_CONTEXT = "SD API";
     }
 }

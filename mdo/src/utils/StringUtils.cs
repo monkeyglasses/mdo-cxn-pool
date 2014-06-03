@@ -473,5 +473,29 @@ namespace gov.va.medora.utils
             }
             return outputText;
         }
+
+        /// <summary>
+        /// Give a string with a quoted string inside, obtain the first quoted string.
+        /// e.g. extractQuoteString(@"This is a quoted string: "PEMDAS is the pnuemonic for order of operations"") 
+        /// should return: "PEMDAS is the pnuemonic for order of operations"
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
+        public static string extractQuotedString(string s)
+        {
+            if (String.IsNullOrEmpty(s) || !s.Contains("\""))
+            {
+                return "";
+            }
+
+            int firstQuote = s.IndexOf('"', 0);
+            int secondQuote = s.IndexOf('"', firstQuote + 1);
+
+            if (secondQuote <= 0)
+            {
+                return "";
+            }
+            return s.Substring(firstQuote + 1, secondQuote - firstQuote - 1);
+        }
     }
 }
